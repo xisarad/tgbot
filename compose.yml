@@ -1,6 +1,19 @@
-version: '3'
+version: '3.8'
 services:
-    app:
-        image: telegram-bot
-        env_file:
-            - ./.env
+  telegram-bot:
+    build: .
+    image: telegram-bot:latest
+    container_name: telegram-bot-db
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      - ADMIN_ID=123456789  # Замените на ваш ID
+      - TZ=Europe/Moscow
+    volumes:
+      # Монтируем директорию с БД
+      - ./db:/data
+      # Монтируем директорию с логами
+      - ./logs:/app/logs
+    # Записываем логи в файл
+    command: python main.py 2>&1 | tee /app/logs/bot.log
