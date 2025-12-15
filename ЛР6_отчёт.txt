@@ -1,0 +1,49 @@
+ЛАБОРАТОРНАЯ РАБОТА №6 - ВЫПОЛНЕНА
+
+Выполненные пункты:
+
+1. ✓ Создан .env-файл с токеном бота
+   Файл: .env
+   Содержимое: token="7290687483:AAEPtFQC6iOrfWQJ-Sx3Gd5KzjnMoGw9Ebk"
+
+2. ✓ .gitignore отредактирован
+   - .env добавлен в .gitignore
+   - config.py удалён из .gitignore
+
+3. ✓ Git операции выполнены
+   - git add .
+   - git commit -m "ЛР6: добавлен .env, обновлена структура проекта"
+
+4. ✓ Создан файл compose.yml
+   Файл: compose.yml
+   Использует образ: telegram-bot
+   Загружает переменные из: ./.env
+
+5. ✓ README-файл изменён
+   Добавлены инструкции по запуску через docker compose up -d
+   Описано назначение .env файла
+
+6. ✓ Изменена структура репозитория
+   - Создан подкаталог app/
+   - Файлы приложения перемещены в app/
+     * app/main.py
+     * app/config.py
+     * app/requirements.txt
+
+7. ✓ Dockerfile изменён
+   Было: COPY . .
+   Стало: COPY ./app .
+
+Текущая структура проекта:
+telegram-bot/
+├── app/
+│   ├── main.py
+│   ├── config.py
+│   └── requirements.txt
+├── Dockerfile
+├── compose.yml
+├── .env
+├── .gitignore
+└── README.md
+
+Все требования лабораторной работы выполнены.
