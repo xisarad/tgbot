@@ -34,22 +34,36 @@ def init_db():
     conn.close()
     print("✅ База данных инициализирована")
 
-# Регистрация/обновление пользователя
+# Регистрация/обновление пользователя (БЕЗ сброса счетчика)
 def register_user(user_id, username, first_name, last_name):
     conn = sqlite3.connect('/data/bot_database.db')
     cursor = conn.cursor()
     
-    cursor.execute('''
-        INSERT OR REPLACE INTO users (user_id, username, first_name, last_name, message_count)
-        VALUES (?, ?, ?, ?, COALESCE((SELECT message_count FROM users WHERE user_id = ?), 0))
-    ''', (user_id, username, first_name, last_name, user_id))
+    # Проверяем, существует ли пользователь
+    cursor.execute('SELECT 1 FROM users WHERE user_id = ?', (user_id,))
+    exists = cursor.fetchone()
+    
+    if not exists:
+        # Новый пользователь
+        cursor.execute('''
+            INSERT INTO users (user_id, username, first_name, last_name, message_count)
+            VALUES (?, ?, ?, ?, 0)
+        ''', (user_id, username, first_name, last_name))
+        print(f"👤 Новый пользователь: {user_id} ({first_name})")
+    else:
+        # Обновляем только имя/username если изменились
+        cursor.execute('''
+            UPDATE users 
+            SET username = ?, first_name = ?, last_name = ?
+            WHERE user_id = ? AND (username != ? OR first_name != ? OR last_name != ?)
+        ''', (username, first_name, last_name, user_id, username, first_name, last_name))
     
     conn.commit()
     conn.close()
 
 # Увеличиваем счётчик сообщений
 def increment_message_count(user_id):
-    conn = sqlite3.connect('/data/batabase.db')
+    conn = sqlite3.connect('/data/bot_database.db')
     cursor = conn.cursor()
     cursor.execute('UPDATE users SET message_count = message_count + 1 WHERE user_id = ?', (user_id,))
     conn.commit()
@@ -62,6 +76,17 @@ def save_message(user_id, text):
     cursor.execute('INSERT INTO messages (user_id, text) VALUES (?, ?)', (user_id, text))
     conn.commit()
     conn.close()
+
+# Получаем статистику
+def get_user_stats(user_id):
+    conn = sqlite3.connect('/data/bot_database.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT message_count FROM users WHERE user_id = ?', (user_id,))
+    result = cursor.fetchone()
+    
+    conn.close()
+    return result[0] if result else 0
 
 # Обработчик команды /start
 @bot.message_handler(commands=['start'])
@@ -87,30 +112,30 @@ def send_welcome(message):
 Все ваши сообщения сохраняются в базе данных.
     """
     bot.reply_to(message, welcome_text)
-    print(f"📝 Пользователь {user_id} зарегистрирован")
 
 # Обработчик команды /stats
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
     user_id = message.from_user.id
-    conn = sqlite3.connect('/data/bot_database.db')
-    cursor = conn.cursor()
     
-    cursor.execute('SELECT message_count FROM users WHERE user_id = ?', (user_id,))
-    result = cursor.fetchone()
+    # Проверяем/регистрируем пользователя
+    register_user(user_id, 
+                  message.from_user.username,
+                  message.from_user.first_name,
+                  message.from_user.last_name)
     
-    if result:
-        count = result[0]
+    # Получаем статистику
+    count = get_user_stats(user_id)
+    
+    if count > 0:
         bot.reply_to(message, f"📊 Ваша статистика:\nОтправлено сообщений: {count}")
     else:
-        bot.reply_to(message, "Вы ещё не зарегистрированы. Напишите что-нибудь!")
-    
-    conn.close()
+        bot.reply_to(message, "📊 Вы отправили 0 сообщений.\nНапишите что-нибудь текстом!")
 
 # Обработчик команды /users (только для админов)
 @bot.message_handler(commands=['users'])
 def show_users(message):
-    # Простая проверка на админа (можно вынести в config.py)
+    # Простая проверка на админа
     if message.from_user.id == config.admin_id:
         conn = sqlite3.connect('/data/bot_database.db')
         cursor = conn.cursor()
@@ -118,9 +143,12 @@ def show_users(message):
         cursor.execute('SELECT user_id, username, first_name, message_count FROM users ORDER BY registered_at DESC LIMIT 10')
         users = cursor.fetchall()
         
-        response = "👥 Последние 10 пользователей:\n"
-        for user in users:
-            response += f"ID: {user[0]}, Имя: {user[2]}, Сообщений: {user[3]}\n"
+        if users:
+            response = "👥 Последние 10 пользователей:\n"
+            for idx, user in enumerate(users, 1):
+                response += f"{idx}. ID: {user[0]}, Имя: {user[2]}, Сообщений: {user[3]}\n"
+        else:
+            response = "👥 В базе пока нет пользователей."
         
         bot.reply_to(message, response)
         conn.close()
@@ -149,12 +177,15 @@ def handle_text(message):
     # Увеличиваем счётчик
     increment_message_count(user_id)
     
+    # Получаем обновленную статистику
+    count = get_user_stats(user_id)
+    
     # Ответ
-    response = f"Вы написали: {text}\n(сообщение сохранено в БД)"
+    response = f"Вы написали: {text}\n(сообщение сохранено в БД)\nВсего сообщений: {count}"
     bot.send_message(message.chat.id, response)
     
     # Логируем
-    print(f"💾 Сообщение от {user_id} сохранено: {text[:20]}...")
+    print(f"💾 Сообщение от {user_id} сохранено. Всего: {count}")
 
 # Запуск бота
 if __name__ == '__main__':
