@@ -1,3 +1,27 @@
 env/
 __pycache__/.env
 .env.local
+
+# Секретные файлы
+config.py
+secrets.ini
+*.ini
+
+# Базы данных
+*.db
+*.sqlite
+*.db-journal
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Логи
+*.log
+logs/
+
+# Временные файлы
+*.tmp
+*.temp
