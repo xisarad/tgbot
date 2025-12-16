@@ -1,11 +1,14 @@
 version: '3.8'
+
 services:
-  telegram-bot:
+  bot:
     build: .
-    image: telegram-bot-compose
-    container_name: telegram-bot-app
     restart: unless-stopped
-    env_file:
-      - ./.env
+    volumes:
+      - ./data:/app/data  # Монтируем папку с БД
+      - ./logs:/app/logs  # Монтируем логи
     environment:
-      - TZ=Europe/Moscow
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DATABASE_PATH=/app/data/bot_database.db
+    command: >
+      sh -c "python /app/app/init_db.py && python /app/app/bot.py"
